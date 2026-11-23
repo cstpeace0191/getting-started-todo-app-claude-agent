@@ -1,0 +1,30 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+# 1. Control Plane 마스터 노드 (표준 L7 Ingress 및 HTTP/HTTPS 포트 매핑)
+- role: control-plane
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+  extraPortMappings:
+  # HTTP 표준 포트: 호스트 PC 80번 ➔ NGINX Ingress Controller 수신 포트 80
+  - containerPort: 80
+    hostPort: 80
+    protocol: TCP
+  # HTTPS 보안 포트: 호스트 PC 443번 ➔ NGINX Ingress Controller 수신 포트 443
+  - containerPort: 443
+    hostPort: 443
+    protocol: TCP
+  # [참고: 과거 단일 NodePort 고정 방식 (비권장)]
+  # - containerPort: 30080   # kind-service-np.yaml 전용 고정 포트 (다수 서비스 확장 불가)
+  #   hostPort: 80
+  #   protocol: TCP
+
+# 2. Worker 노드 1
+- role: worker
+
+# 3. Worker 노드 2
+- role: worker

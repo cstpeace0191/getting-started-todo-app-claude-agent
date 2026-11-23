@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-backend-cip
+  labels:
+    app.kubernetes.io/name: getting-started-todo-app
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: todo-backend
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 3000
+
+# [ClusterIP 특징]
+# - 클러스터 내부 통신용 가상 IP를 할당받는 쿠버네티스의 기본 서비스 타입입니다.
+# - 클러스터 외부에서는 직접 접근할 수 없으며, 클러스터 내부의 다른 파드나 서비스 간 통신에 사용됩니다.
+# - 외부 접속 테스트 시에는 kubectl port-forward 명령어를 활용할 수 있습니다:
+#   $ kubectl port-forward svc/todo-backend-cip 8080:80
