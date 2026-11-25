@@ -1,3 +1,26 @@
+# Python virtual environments
+.venv
+.venv/
+backend/.venv/
+venv/
+env/
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Databases
+*.db
+*.sqlite3
+
+# IDE / Editor
+.vscode/
+
+# Testing & Tools
+.playwright-mcp/
+
 # Logs
 logs
 *.log
@@ -40,6 +63,7 @@ build/Release
 
 # Dependency directories
 node_modules/
+client/node_modules/
 jspm_packages/
 
 # Snowpack dependency directory (https://snowpack.dev/)

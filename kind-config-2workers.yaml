@@ -18,6 +18,9 @@ nodes:
   - containerPort: 443
     hostPort: 443
     protocol: TCP
+  - containerPort: 30080      # kind-service-np.yaml 의 NodePort 를 localhost:30080 으로 노출
+    hostPort: 30080
+    protocol: TCP
   # [참고: 과거 단일 NodePort 고정 방식 (비권장)]
   # - containerPort: 30080   # kind-service-np.yaml 전용 고정 포트 (다수 서비스 확장 불가)
   #   hostPort: 80

@@ -1,0 +1,3 @@
+backend:
+  serviceType: LoadBalancer
+  servicePort: 80

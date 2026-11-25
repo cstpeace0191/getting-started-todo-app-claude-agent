@@ -8,8 +8,8 @@
 # there is some overlap in the routing rules, the proxy determines the service
 # based on the most specific rule.
 #
-# To support easier debugging and troubleshooting, phpMyAdmin is also included
-# to provide a web interface to the MySQL database.
+# To support easier debugging and troubleshooting, Adminer is also included
+# to provide a web interface to the PostgreSQL database.
 ###################################################
 
 ###################################################
@@ -27,7 +27,7 @@ services:
   # service. Think of it like a HTTP router or a load balancer. It simply 
   # forwards requests and allows us to simulate the final version of the 
   # application where the frontend and backend are bundled together. We can 
-  # also use it to route requests to phpMyAdmin, which won't be accessible at 
+  # also use it to route requests to Adminer, which won't be accessible at 
   # localhost, but at db.localhost.
   #
   # The image for this service comes directly from Docker Hub and is a Docker
@@ -70,12 +70,14 @@ services:
       context: ./
       target: backend-dev
     environment:
-      MYSQL_HOST: mysql
-      MYSQL_USER: root
-      MYSQL_PASSWORD: secret
-      MYSQL_DB: todos
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: todos
+      # Claude API 키 (호스트의 환경변수에서 전달, 없으면 AI 분류만 꺼짐)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
     develop:
       watch:
@@ -83,8 +85,6 @@ services:
           action: sync
           target: /usr/local/app/src
         - path: ./backend/requirements.txt
-          action: rebuild
-        - path: ./backend/requirements-dev.txt
           action: rebuild
     labels:
       traefik.http.routers.backend.rule: Host(`localhost`) && PathPrefix(`/api`)
@@ -122,13 +122,13 @@ services:
 
 
   ###################################################
-  # Service: mysql
+  # Service: postgres
   #
-  # The MySQL service is used to provide the database for the application.
+  # The PostgreSQL service is used to provide the database for the application.
   # The image for this service comes directly from Docker Hub and is a Docker 
   # Official Image.
   
-  # The data is persisted in a volume named todo-mysql-data. Using a volume 
+  # The data is persisted in a volume named todo-postgres-data. Using a volume 
   # allows us to take down the services without losing the data. When we start
   # the services again, the data will still be there (assuming we didn't delete
   # the volume, of course!).
@@ -137,23 +137,23 @@ services:
   # database to create. Since these are used only for local development, it's
   # ok to hard-code them here.
   ###################################################
-  mysql:
-    image: mysql:9.3
+  postgres:
+    image: postgres:17
     volumes:
-      - todo-mysql-data:/var/lib/mysql
-    environment: 
-      MYSQL_ROOT_PASSWORD: secret
-      MYSQL_DATABASE: todos
+      - todo-postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: todos
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d todos"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   ###################################################
-  # Service: phpmyadmin
+  # Service: adminer
   #
-  # This service provides a web interface to the MySQL database. It's useful
+  # This service provides a web interface to the PostgreSQL database. It's useful
   # for debugging and troubleshooting data, schemas, and more. The image for 
   # this service comes directly from Docker Hub and is a Docker Official Image.
   #
@@ -163,24 +163,22 @@ services:
   #
   # The labels are used to configure Traefik (the reverse proxy) with the
   # routing rules. In this case, all requests to db.localhost will be forwarded
-  # to this service's port 80.
+  # to this service's port 8080.
   ###################################################
-  phpmyadmin:
-    image: phpmyadmin
+  adminer:
+    image: adminer
     environment:
-      PMA_HOST: mysql
-      PMA_USER: root
-      PMA_PASSWORD: secret
+      ADMINER_DEFAULT_SERVER: postgres
     labels:
-      traefik.http.routers.phpmyadmin.rule: Host(`db.localhost`)
-      traefik.http.services.phpmyadmin.loadbalancer.server.port: 80
+      traefik.http.routers.adminer.rule: Host(`db.localhost`)
+      traefik.http.services.adminer.loadbalancer.server.port: 8080
 
 ###################################################
 # Volumes
 #
 # For this application stack, we only have one volume. It's used to persist the
-# data for the MySQL service. We are only going to use the default values,
+# data for the PostgreSQL service. We are only going to use the default values,
 # hence the lack of any configuration for the volume.
 ###################################################
 volumes:
-  todo-mysql-data:
+  todo-postgres-data:

@@ -1,7 +1,7 @@
 # Getting Started Todo App - FastAPI Backend
 
 FastAPI 및 Uvicorn 기반의 비동기(Async) Python Todo App 백엔드 서버입니다.  
-SQLite 및 MySQL 데이터베이스와의 비동기 연동을 지원하며, React 기반 프론트엔드(`client`) 및 Nginx 리버스 프록시와 완벽하게 연동됩니다.
+SQLite 및 PostgreSQL 데이터베이스와의 비동기 연동을 지원하며, React 기반 프론트엔드(`client`) 및 Nginx 리버스 프록시와 완벽하게 연동됩니다.
 
 ---
 
@@ -13,7 +13,7 @@ SQLite 및 MySQL 데이터베이스와의 비동기 연동을 지원하며, Reac
 - **데이터 검증/직렬화**: [Pydantic v2](https://docs.pydantic.dev/)
 - **비동기 DB 클라이언트**: 
   - [aiosqlite](https://github.com/omnilib/aiosqlite) (SQLite)
-  - [aiomysql](https://github.com/aio-libs/aiomysql) (MySQL)
+  - [asyncpg](https://github.com/MagicStack/asyncpg) (PostgreSQL)
 - **테스트 프레임워크**: [pytest](https://docs.pytest.org/), `pytest-asyncio`, `httpx`
 
 ---
@@ -26,9 +26,9 @@ backend/
 │   ├── main.py              # FastAPI 메인 앱 및 라이프사이클(Lifespan) 관리
 │   ├── models.py            # Pydantic 데이터 모델 (Item, ItemCreate 등)
 │   ├── persistence/         # 비동기 데이터베이스 계층
-│   │   ├── __init__.py      # DB 엔진 자동 선택 (SQLite / MySQL)
+│   │   ├── __init__.py      # DB 엔진 자동 선택 (SQLite / PostgreSQL)
 │   │   ├── sqlite.py        # aiosqlite 기반 SQLite 구현
-│   │   └── mysql.py         # aiomysql 기반 MySQL 풀 구현
+│   │   └── postgres.py      # asyncpg 기반 PostgreSQL 풀 구현
 │   └── routes/              # API 라우터
 │       ├── __init__.py
 │       ├── greeting.py      # /api/greeting 라우트
@@ -88,8 +88,7 @@ uv --version
 #### Windows (PowerShell)
 ```powershell
 cd backend
-uv venv 
-.venv\Scripts\Activate.ps1
+uv sync
 ```
 
 #### Windows (CMD)
@@ -141,6 +140,11 @@ uv run uvicorn src.main:app --host 0.0.0.0 --port 3000 --reload
    ```
 
 2. **가상환경 활성화**:
+   - **Windows (Git Bash)**:
+     ```bash
+     source .venv/Scripts/activate
+     ```
+     > Git Bash 에서는 역슬래시(`\`)가 이스케이프 문자로 처리되므로 경로를 `/` 로 써야 합니다.
    - **Windows (PowerShell)**:
      ```powershell
      .venv\Scripts\Activate.ps1
@@ -187,7 +191,7 @@ python main.py
 환경변수를 통해 데이터베이스를 유연하게 설정할 수 있습니다.
 
 ### SQLite (기본값)
-`MYSQL_HOST` 환경변수가 설정되지 않은 경우 기본적으로 SQLite를 사용합니다.
+`POSTGRES_HOST` 환경변수가 설정되지 않은 경우 기본적으로 SQLite를 사용합니다.
 
 - `SQLITE_DB_LOCATION`: SQLite 데이터베이스 파일 경로 (기본값: `/etc/todos/todo.db` 또는 로컬 지정 경로)
 - 로컬 경로 지정 예시:
@@ -197,15 +201,18 @@ python main.py
   python main.py
   ```
 
-### MySQL
-`MYSQL_HOST` 또는 `MYSQL_HOST_FILE` 환경변수가 설정되어 있으면 자동으로 MySQL 비동기 모드로 전환됩니다.
+### PostgreSQL
+`POSTGRES_HOST` 또는 `POSTGRES_HOST_FILE` 환경변수가 설정되어 있으면 자동으로 PostgreSQL 비동기 모드로 전환됩니다.
 
 | 환경변수명 | Docker Secret 파일 변수명 | 기본값 | 설명 |
 | :--- | :--- | :--- | :--- |
-| `MYSQL_HOST` | `MYSQL_HOST_FILE` | `localhost` | MySQL 서버 호스트명 또는 IP |
-| `MYSQL_USER` | `MYSQL_USER_FILE` | `root` | MySQL 사용자명 |
-| `MYSQL_PASSWORD` | `MYSQL_PASSWORD_FILE` | `""` | MySQL 비밀번호 |
-| `MYSQL_DB` | `MYSQL_DB_FILE` | `todos` | 데이터베이스 이름 |
+| `POSTGRES_HOST` | `POSTGRES_HOST_FILE` | `localhost` | PostgreSQL 서버 호스트명 또는 IP |
+| `POSTGRES_USER` | `POSTGRES_USER_FILE` | `postgres` | PostgreSQL 사용자명 |
+| `POSTGRES_PASSWORD` | `POSTGRES_PASSWORD_FILE` | `""` | PostgreSQL 비밀번호 |
+| `POSTGRES_DB` | `POSTGRES_DB_FILE` | `todos` | 데이터베이스 이름 |
+| `POSTGRES_PORT` | - | `5432` | 포트 |
+
+시작 시 `pg_trgm` 확장과 `todo_items.name` GIN 인덱스를 만들어 검색 속도를 높입니다 (권한이 없으면 인덱스 없이 검색만 동작).
 
 ---
 
@@ -214,10 +221,57 @@ python main.py
 | Method | Endpoint | Description | Request Body | Response |
 | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/api/greeting` | 인사말 조회 | - | `{"greeting": "Hello world!"}` |
-| `GET` | `/api/items` | 전체 Todo 목록 조회 | - | `[{"id": "...", "name": "...", "completed": false}, ...]` |
-| `POST` | `/api/items` | 새 Todo 항목 추가 | `{"name": "할 일 내용"}` | `{"id": "UUID", "name": "할 일 내용", "completed": false}` |
-| `PUT` | `/api/items/{id}` | Todo 항목 수정 | `{"name": "수정 이름", "completed": true}` | `{"id": "UUID", "name": "수정 이름", "completed": true}` |
+| `GET` | `/api/items` | Todo 목록 조회. 선택 파라미터: `q`(이름 부분 일치, 대소문자 무시), `category`(`study`/`work`/`personal`), `registered`(`true`=등록됨, `false`=작업 중) | - |
+| `GET` | `/api/categories?registered=true` | 분류별 항목 개수 분류별 개수 (분류 선택 목록용) | - | `[{"category": "work", "count": 2}]` |
+| `GET` | `/api/items` (응답) | 응답 형식 | - | `[{"id": "...", "name": "...", "completed": false, "category": "study", "priority": "high", "registered": false, "due_date": "2026-11-25", "due_time": "09:00"}, ...]` |
+| `GET` | `/api/schedule?date=YYYY-MM-DD` | 오늘 일정: `date` 의 항목 + 기한이 지난 미완료 항목 (등록 여부 무관, 날짜·시간순). `date` 생략 시 서버 오늘 | - | 항목 배열 (잘못된 날짜: 422) |
+| `GET` | `/api/schedule?start=YYYY-MM-DD&end=YYYY-MM-DD` | 기간 일정: 기한이 `start`~`end`(양끝 포함) 사이인 항목. 주간·월간·연간·캘린더 검색에 사용. `start`/`end` 는 함께 줘야 하고 `date` 와 같이 쓸 수 없음 | - | 항목 배열 (`start` > `end`, 한쪽만 지정, 잘못된 날짜: 422) |
+| `POST` | `/api/items` | 새 Todo 항목 추가 (Claude 자동 분류 + 일정 추출) | `{"name": "할 일 내용", "today": "YYYY-MM-DD", "due_date": "YYYY-MM-DD", "due_time": "HH:MM"}` (`name` 외 선택. `due_*` 를 주면 AI 추출값보다 우선) | `{"id": "UUID", "name": "할 일 내용", "completed": false, "category": "...", "priority": "..."}` |
+| `PUT` | `/api/items/{id}` | Todo 항목 수정 (분류 수동 변경 가능) | `{"name": "수정 이름", "completed": true, "category": "work", "priority": "low"}` (모두 선택). `{"registered": true}` 로 **등록(Register)**, `due_date`/`due_time` 으로 일정 변경 (`""` 이면 삭제, 날짜 삭제 시 시간도 삭제) | 수정된 항목 |
+| `POST` | `/api/items/{id}/classify?today=YYYY-MM-DD` | Claude 로 다시 분류 (문장에서 일정도 다시 추출, 못 찾으면 기존 일정 유지) | - | 분류된 항목 (AI 꺼짐: 503, 실패: 502) |
+| `GET` | `/api/ai/status` | AI 분류 사용 가능 여부 | - | `{"enabled": true}` |
 | `DELETE` | `/api/items/{id}` | Todo 항목 삭제 | - | `HTTP 200 OK` |
+
+---
+
+## 🤖 AI 자동 분류 (Claude API)
+
+할 일을 추가하면 Claude API(`claude-opus-5-5`)를 **짧은 단일 호출**로 불러 카테고리와 우선순위를 자동으로 붙입니다. 코드는 `src/ai/classifier.py` 에 있습니다.
+
+| 필드 | 값 | 화면 표시 |
+| :--- | :--- | :--- |
+| `category` | `study` / `work` / `personal` | 학업 / 업무 / 개인 |
+| `priority` | `high` / `medium` / `low` | 높음 / 보통 / 낮음 |
+
+- **Structured Outputs**: `client.beta.messages.parse(output_format=Classification)` 로 응답을 Pydantic 모델로 검증합니다.
+- **비용·지연 절감**: 단순 분류이므로 `output_config={"effort": "low"}` 를 사용합니다.
+- **거절 대비**: `fallbacks="default"` (server-side fallback 베타)로 안전 분류기가 거절하면 서버가 다른 모델로 자동 재시도합니다.
+- **장애 격리**: 키가 없거나 API 호출이 실패하면 분류만 비어 있는 상태(`null`)로 저장되고, CRUD 는 그대로 동작합니다.
+- **일정 추출**: 클라이언트가 보낸 오늘 날짜(`today`)를 기준으로 "내일 오전 9시" 같은 표현을 `due_date`/`due_time` 으로 변환합니다. AI 가 돌려준 값은 형식·존재 여부를 검증하고 틀리면 버립니다.
+- **DB 마이그레이션**: 기존 `todo_items` 테이블에 `category`, `priority` 컬럼이 없으면 시작 시 자동으로 추가합니다 (SQLite/PostgreSQL).
+
+### API 키 설정
+
+| 환경 변수 | 설명 |
+| :--- | :--- |
+| `ANTHROPIC_API_KEY` | Claude API 키 |
+| `ANTHROPIC_API_KEY_FILE` | 키가 들어 있는 파일 경로 (Docker/K8s Secret 마운트용, 우선 적용) |
+| `AI_CLASSIFY_ENABLED` | `false` 로 두면 키가 있어도 분류 비활성화 |
+
+```powershell
+# 로컬 실행 (PowerShell)
+$env:ANTHROPIC_API_KEY = "<your-key>"
+uv run python main.py
+```
+
+Docker Compose 는 호스트의 `ANTHROPIC_API_KEY` 를 백엔드 컨테이너로 전달합니다. Kubernetes(kind)에서는 아래처럼 Secret 을 만들면 `todo-backend` Deployment 가 읽어 갑니다 (Secret 이 없어도 Pod 는 정상 기동).
+
+```bash
+kubectl create secret generic todo-ai-secret --from-literal=ANTHROPIC_API_KEY=<your-key>
+kubectl rollout restart deployment/todo-backend
+```
+
+> 테스트(`spec/ai`, `spec/routes/test_classifyItem.py`)는 Claude 클라이언트를 mock 으로 대체하므로 실제 API 를 호출하지 않고 비용도 들지 않습니다.
 
 ---
 

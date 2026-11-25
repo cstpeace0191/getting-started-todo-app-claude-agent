@@ -11,23 +11,190 @@
         box-shadow: 0 0 1em #aaa;
     }
 
-    &.completed {
+    // 취소선은 이름과 태그에만 (오른쪽 버튼들에는 긋지 않는다)
+    &.completed .name {
         text-decoration: line-through;
     }
 }
 
-.toggles {
-    color: black;
+// 완료/해야됨 토글: 완료=황토색, 해야됨=흰색
+.btn.status-toggle {
+    border: 1px solid #b8862b;
+
+    &.is-todo,
+    &.is-todo:hover,
+    &.is-todo:focus,
+    &.is-todo:active {
+        background: #fff;
+        color: #6b4e12;
+    }
+
+    &.is-done,
+    &.is-done:hover,
+    &.is-done:focus,
+    &.is-done:active {
+        background: #c8963e;
+        border-color: #b8862b;
+        color: #fff;
+    }
 }
 
 .name {
     padding-top: 3px;
 }
 
-.remove {
+.tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 0.8rem;
+
+    .badge {
+        font-weight: 500;
+    }
+
+    .classify {
+        padding: 0;
+        font-size: 0.8rem;
+        text-decoration: none;
+    }
+}
+
+.actions {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 2px;
+    padding-left: 0;
+}
+
+.result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 6px;
     padding-left: 0;
 }
 
 button:focus {
     border: 1px solid #333;
+}
+
+.category-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.item .name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.actions .btn,
+.result-actions .btn {
+    white-space: nowrap;
+}
+
+.due-badge {
+    border: 0;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.due-editor {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+
+    .form-control {
+        width: auto;
+    }
+}
+
+.due-input {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+
+    .form-control {
+        width: auto;
+    }
+}
+
+.section-title {
+    margin: 18px 0 10px;
+    font-weight: 600;
+}
+
+.edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .edit-form-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+
+        .form-control {
+            width: auto;
+        }
+    }
+}
+
+.item .actions {
+    flex-wrap: wrap;
+    max-width: 18rem;
+    gap: 4px;
+}
+
+.bulk-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 15px;
+    padding: 8px 15px;
+    background-color: white;
+    border-radius: 5px;
+    box-shadow: 0 0 0.5em #ddd;
+
+    .bulk-select-all {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        cursor: pointer;
+
+        .form-check-input {
+            margin: 0;
+            cursor: pointer;
+        }
+    }
+}
+
+.select-col {
+    display: flex;
+    align-items: flex-start;
+    padding-top: 6px;
+    padding-right: 0;
+}
+
+.calendar-range {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .form-control {
+        flex: 1;
+        min-width: 0;
+    }
 }

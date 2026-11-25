@@ -1,0 +1,63 @@
+#kind-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: todo-backend-ingress
+  labels:
+    app.kubernetes.io/name: getting-started-todo-app-fastapi-claude
+    app.kubernetes.io/component: backend
+  annotations:
+    # NGINX Ingress Controller 구버전 호환용 어노테이션 (ingressClassName과 병행 권장)
+    kubernetes.io/ingress.class: "nginx"
+    # 로컬 개발 환경용 HTTP -> HTTPS 자동 리다이렉트 비활성화
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  # Kubernetes v1 표준 IngressClass 지정 (Kind의 ingress-nginx 컨트롤러 연동)
+  ingressClassName: nginx
+  rules:
+  # 1. 기본 catch-all 규칙 (http://127.0.0.1 및 모든 Host 접속 지원)
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: todo-backend-cip
+            port:
+              number: 80
+  # 2. 로컬 브라우저/curl 기본 접속용 (http://localhost)
+  - host: localhost
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: todo-backend-cip   # Ingress 백엔드는 클러스터 내부용 ClusterIP 서비스 사용 권장
+            port:
+              number: 80             # 서비스 포트 번호 지정 (필수)
+  # 2. 기존 도메인 호스트 접속용 (hosts 파일 매핑 또는 Host 헤더 테스트용)
+  - host: www.ssu-cloud-computing-local.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: todo-backend-cip
+            port:
+              number: 80
+
+# [Kind vs GKE Ingress 차이점]
+# - 컨트롤러:
+#   * GKE: Google Cloud HTTP(S) 부하 분산기(GCE L7 Ingress Controller) 자동 프로비저닝 (ingress.class: "gce")
+#   * Kind: 클러스터 내부에 NGINX Ingress Controller(ingress-nginx) 별도 설치 필요 (ingressClassName: "nginx")
+# - 백엔드 서비스(Service):
+#   * GKE: 외부/내부 LB 또는 NodePort/NEG 서비스 연동
+#   * Kind: L7 Ingress 뒤에서 로컬 부하 분산 시 가볍고 표준적인 ClusterIP(todo-backend-cip) 서비스 직접 연결 권장
+# - 로컬 테스트 방법:
+#   * Kind 클러스터 생성 시 80 포트 extraPortMappings 필수 (kind-config 참조)
+#   * NGINX Ingress Controller 설치:
+#     $ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+#   * 브라우저 접속: http://localhost
+#   * 도메인 헤더 테스트: curl -H "Host: www.ssu-cloud-computing.com" http://localhost/
