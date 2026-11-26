@@ -2,7 +2,7 @@ import uuid
 import datetime
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query, Response, status
-from ..models import BulkDelete, BulkDeleteResult, Category, CategoryCount, Item, ItemCreate, ItemUpdate, valid_date
+from ..models import Briefing, BriefingRequest, BulkDelete, BulkDeleteResult, Category, CategoryCount, Item, ItemCreate, ItemUpdate, valid_date
 from .. import persistence as db
 from .. import ai
 
@@ -157,6 +157,17 @@ async def classify_existing_item(item_id: str, today: Optional[str] = None):
 async def ai_status():
     """클라이언트가 AI 분류 버튼을 보여줄지 결정할 때 사용"""
     return {"enabled": ai.is_enabled()}
+
+
+@router.post("/api/ai/briefing", response_model=Briefing)
+async def ai_briefing(payload: BriefingRequest):
+    """Claude 에이전트가 할 일 DB 를 직접 조회해 오늘의 일정 브리핑을 만든다."""
+    if not ai.is_enabled():
+        raise HTTPException(status_code=503, detail="AI is disabled (ANTHROPIC_API_KEY not set)")
+    briefing = await ai.make_briefing(payload.today)
+    if briefing is None:
+        raise HTTPException(status_code=502, detail="AI briefing failed")
+    return briefing
 
 
 @router.delete("/api/items/{item_id}", status_code=status.HTTP_200_OK)

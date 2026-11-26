@@ -8,7 +8,7 @@ Compose 파일부터 멀티스테이지 Dockerfile, Kubernetes 배포, [Katenary
 
 ### 1) 운영 및 쿠버네티스/Helm 배포 아키텍처
 
-Helm Chart 및 운영 환경에서는 Dockerfile의 멀티스테이지 빌드(`target: final`)를 통해 React 프론트엔드가 정적 HTML/CSS/JS로 컴파일되어 FastAPI 백엔드(`backend/src/static`)에 단일 이미지(`todo-lab-ai:prod`)로 번들링됩니다.
+Helm Chart 및 운영 환경에서는 Dockerfile의 멀티스테이지 빌드(`target: final`)를 통해 React 프론트엔드가 정적 HTML/CSS/JS로 컴파일되어 FastAPI 백엔드(`backend/src/static`)에 단일 이미지(`todo-claude-agent:prod`)로 번들링됩니다.
 
 ```mermaid
 flowchart LR
@@ -17,7 +17,7 @@ flowchart LR
     subgraph K8S["Kubernetes 클러스터 (KIND / GKE)"]
         SVC["LoadBalancer Service<br/>(포트 80 ➔ 3000)"]
 
-        subgraph BackendPod["backend 파드 (todo-lab-ai:prod)"]
+        subgraph BackendPod["backend 파드 (todo-claude-agent:prod)"]
             Init["InitContainer<br/>(wait-for-postgres)"]
             subgraph Container["메인 컨테이너 (:3000)"]
                 Static["정적 React 웹 UI<br/>(HTML / CSS / JS)"]
@@ -76,7 +76,7 @@ flowchart LR
 - **프론트엔드**: React 18, TypeScript, Vite, Bootstrap 5 UI
 - **백엔드**: Python FastAPI, Uvicorn, Pydantic, Anthropic Claude API (작업 자동 분류)
 - **데이터베이스**: PostgreSQL 17 (개발: SQLite/PostgreSQL 지원, 프로덕션: PostgreSQL 17 볼륨 마운트)
-- **프로덕션 번들링**: Dockerfile의 멀티스테이지 빌드(`target: final`)를 통해 React 프론트엔드가 정적 파일로 컴파일되어 FastAPI 백엔드(`backend/src/static`)에 번들링되므로 프로덕션에서는 단일 컨테이너(`todo-lab-ai:prod`)로 서비스됩니다.
+- **프로덕션 번들링**: Dockerfile의 멀티스테이지 빌드(`target: final`)를 통해 React 프론트엔드가 정적 파일로 컴파일되어 FastAPI 백엔드(`backend/src/static`)에 번들링되므로 프로덕션에서는 단일 컨테이너(`todo-claude-agent:prod`)로 서비스됩니다.
 
 개발 중에는 백엔드와 프론트엔드에 서로 다른 개발 도구가 필요하므로 두 개의 별도 서비스로 분리되어 있습니다. 이를 통해 [Vite](https://vitejs.dev/)가 React 앱을 핫 리로드하는 동안 [Uvicorn](https://www.uvicorn.org/)이 FastAPI 백엔드의 변경 사항을 실시간 반영(watch)합니다.
 
@@ -111,7 +111,7 @@ docker compose down
 
 | 환경 (Environment) | 소스 Compose 파일 | 생성된 Helm Chart 폴더 | 대상 클러스터 및 이미지 | 배포 가이드 |
 |---|---|---|---|---|
-| **로컬 KIND (Local)** | `compose-prod-build.yml` | `charts/getting-started-todo-app-fastapi-claude.local_kind` | 로컬 KIND (`todo-lab-ai:prod`) | 본 문서 4절 · [차트 README](charts/getting-started-todo-app-fastapi-claude.local_kind/README.md) |
+| **로컬 KIND (Local)** | `compose-prod-build.yml` | `charts/getting-started-todo-app-fastapi-claude.local_kind` | 로컬 KIND (`todo-claude-agent:prod`) | 본 문서 4절 · [차트 README](charts/getting-started-todo-app-fastapi-claude.local_kind/README.md) |
 | **GitHub Packages (GHCR)** | `compose-prod-GitHub.yml` | `charts/getting-started-todo-app-fastapi-claude.github_kind` | KIND / 원격 GHCR (`ghcr.io/...`) | 본 문서 7절 · [차트 README](charts/getting-started-todo-app-fastapi-claude.github_kind/README.md) |
 | **GCP Artifact Registry / GKE** | `compose-prod-GCPRegistry.yml` | `charts/getting-started-todo-app-fastapi-claude.gcp_gke` | GKE / GCP Artifact Registry (`asia-northeast3-docker.pkg.dev/...`) | 본 문서 8절 · [차트 README](charts/getting-started-todo-app-fastapi-claude.gcp_gke/README.md) |
 
@@ -173,7 +173,7 @@ docker compose down
 
      # 2) 백엔드 프로덕션 서비스: 프론트엔드 번들 + FastAPI
      backend:
-       image: todo-lab-ai:prod        # 빌드 및 쿠버네티스 로드 시 사용할 이미지 태그
+       image: todo-claude-agent:prod        # 빌드 및 쿠버네티스 로드 시 사용할 이미지 태그
        build:
          context: ./
          target: final                # React 프론트엔드 정적 빌드와 FastAPI가 번들링된 최종 스테이지
@@ -229,9 +229,9 @@ docker compose down
    ```
 
    #### 🔍 설정 세부 해설:
-   - **`target: final` & `image: todo-lab-ai:prod`**:
+   - **`target: final` & `image: todo-claude-agent:prod`**:
      - `Dockerfile`의 멀티스테이지 빌드를 통해 React 빌드 산출물(`dist`)을 FastAPI 백엔드의 정적 경로(`backend/src/static`)로 복사한 단일 프로덕션 이미지입니다.
-     - `image:` 속성을 명시하여 `kind load docker-image todo-lab-ai:prod --name my-k8s` 시 일치하는 태그로 원활하게 클러스터에 주입할 수 있습니다.
+     - `image:` 속성을 명시하여 `kind load docker-image todo-claude-agent:prod --name my-k8s` 시 일치하는 태그로 원활하게 클러스터에 주입할 수 있습니다.
    - **`ports` / `expose: 3000` (쿠버네티스 Service 생성)**:
      - Katenary는 Compose 서비스에 명시적인 포트가 정의되어 있지 않으면 쿠버네티스 `Service` 매니페스트를 생성하지 않습니다.
      - `ports: - 3000:3000` 선언을 통해 Helm 변환 시 `templates/backend/service.yaml`(Katenary 기본: ClusterIP, port 3000 → `patch-service-type.py` 적용 후: LoadBalancer, port 80→3000)이 정상 생성되어 외부 포트포워딩 및 파드 간 연결이 가능해집니다.
@@ -364,10 +364,10 @@ kubectl get nodes
    - `backend` 서비스는 프로덕션 타깃(`final`) 이미지를 사용합니다:
      ```bash
      # 1. 프로덕션 이미지 빌드 (FastAPI + React 번들)
-     docker build -t todo-lab-ai:prod --target final .
+     docker build -t todo-claude-agent:prod --target final .
 
      # 2. KIND 클러스터(my-k8s)로 이미지 전달
-     kind load docker-image todo-lab-ai:prod --name my-k8s
+     kind load docker-image todo-claude-agent:prod --name my-k8s
      ```
 
 2. **Helm 차트 배포 실행**:
@@ -438,7 +438,7 @@ kubectl get nodes
      serviceType: LoadBalancer   # 기본값 LoadBalancer (필요 시 ClusterIP로 변경 가능)
      servicePort: 80             # 표준 HTTP 포트 (포트 번호 없이 접속 가능)
      repository:
-       image: todo-lab-ai
+       image: todo-claude-agent
        tag: prod
    ```
 
@@ -563,12 +563,12 @@ kubectl port-forward svc/todo-app-getting-started-todo-app-backend 8080:80
   docker exec -it my-k8s-control-plane crictl images
 
   # 2. 업로드된 로컬 이미지 삭제 (containerd 접두사 docker.io/library/ 포함 또는 Image ID 사용)
-  docker exec -it my-k8s-control-plane crictl rmi docker.io/library/todo-lab-ai:prod
-  docker exec -it my-k8s-worker crictl rmi docker.io/library/todo-lab-ai:prod
-  docker exec -it my-k8s-worker2 crictl rmi docker.io/library/todo-lab-ai:prod
+  docker exec -it my-k8s-control-plane crictl rmi docker.io/library/todo-claude-agent:prod
+  docker exec -it my-k8s-worker crictl rmi docker.io/library/todo-claude-agent:prod
+  docker exec -it my-k8s-worker2 crictl rmi docker.io/library/todo-claude-agent:prod
 
   # 3. (선택) 로컬 호스트의 도커 이미지도 함께 정리할 경우
-  docker rmi todo-lab-ai:prod
+  docker rmi todo-claude-agent:prod
   ```
 
 - **(트러블슈팅) LoadBalancer 서비스 삭제 시 무한 대기할 경우**:
@@ -581,7 +581,7 @@ kubectl port-forward svc/todo-app-getting-started-todo-app-backend 8080:80
 
 ### 7. 원격 GitHub Registry(GHCR) 이미지 사용 시 Chart 생성 및 배포
 
-로컬에서 백엔드 도커 이미지를 직접 빌드(`docker build`)하지 않고, GitHub Container Registry(GHCR) 등에 미리 빌드 및 푸시되어 있는 원격 이미지(`ghcr.io/cstpeace0191/todo-lab-ai:prod`)를 다운로드하여 배포하는 절차 및 실전 트러블슈팅 가이드입니다.
+로컬에서 백엔드 도커 이미지를 직접 빌드(`docker build`)하지 않고, GitHub Container Registry(GHCR) 등에 미리 빌드 및 푸시되어 있는 원격 이미지(`ghcr.io/cstpeace0191/todo-claude-agent:prod`)를 다운로드하여 배포하는 절차 및 실전 트러블슈팅 가이드입니다.
 
 #### 1) Compose 파일 설정 (`compose-prod-GitHub.yml`)
 `backend` 서비스에서 `build:` 섹션을 완전히 제거하고, `image:` 속성에 원격 레지스트리 경로와 태그를 직접 지정합니다:
@@ -600,7 +600,7 @@ services:
 
   backend:
     # 원격 GitHub Container Registry(GHCR) 이미지 지정 (build 블록 제거)
-    image: ghcr.io/cstpeace0191/todo-lab-ai:prod
+    image: ghcr.io/cstpeace0191/todo-claude-agent:prod
     ports:
       - 3000:3000
     expose:
@@ -648,7 +648,7 @@ python scripts/generate-chart.py github_kind
     serviceType: LoadBalancer   # 기본값 LoadBalancer (클라우드/KIND 로드밸런서 지원)
     servicePort: 80             # 표준 HTTP 포트 (포트 번호 없이 접속 가능)
     repository:
-      image: ghcr.io/cstpeace0191/todo-lab-ai
+      image: ghcr.io/cstpeace0191/todo-claude-agent
       tag: prod
     replicas: 1
     imagePullPolicy: IfNotPresent
@@ -714,7 +714,7 @@ GitHub Packages(GHCR)는 최초 생성 시 기본값이 **Private(비공개)** �
 * **해결 방법 A: GitHub 웹에서 패키지를 "Public(공개)"으로 전환 (가장 간단하고 권장)**
   1. GitHub 웹 브라우저에서 본인의 Packages 탭으로 이동:  
      `https://github.com/cstpeace0191?tab=packages` (또는 해당 저장소 우측의 Packages 메뉴)
-  2. `todo-lab-ai` 패키지 클릭
+  2. `todo-claude-agent` 패키지 클릭
   3. 오른쪽 하단의 **Package settings** 클릭
   4. 맨 아래 **Danger Zone**의 **Change package visibility** 클릭 → **`Public`** 선택 후 저장
   5. 변경 후 기존 파드를 재시작하면 정상적으로 이미지를 다운로드합니다:
@@ -737,10 +737,10 @@ GitHub Packages(GHCR)는 최초 생성 시 기본값이 **Private(비공개)** �
      ```
 
 * **해결 방법 C: 로컬 빌드 이미지를 태깅하여 KIND 노드로 직접 로드 (오프라인/로컬 테스트)**
-  로컬에 이미 빌드된 `todo-lab-ai:prod` 이미지가 있는 경우, GHCR 태그로 지정한 뒤 KIND 클러스터로 직접 로드하면 `imagePullPolicy: IfNotPresent`에 의해 원격 다운로드 인증 없이 즉시 기동됩니다:
+  로컬에 이미 빌드된 `todo-claude-agent:prod` 이미지가 있는 경우, GHCR 태그로 지정한 뒤 KIND 클러스터로 직접 로드하면 `imagePullPolicy: IfNotPresent`에 의해 원격 다운로드 인증 없이 즉시 기동됩니다:
   ```powershell
-  docker tag todo-lab-ai:prod ghcr.io/cstpeace0191/todo-lab-ai:prod
-  kind load docker-image ghcr.io/cstpeace0191/todo-lab-ai:prod --name my-k8s
+  docker tag todo-claude-agent:prod ghcr.io/cstpeace0191/todo-claude-agent:prod
+  kind load docker-image ghcr.io/cstpeace0191/todo-claude-agent:prod --name my-k8s
   kubectl delete pod -l katenary.v3/component=backend
   ```
 
@@ -779,7 +779,7 @@ kubectl port-forward svc/todo-app-getting-started-todo-app-backend 8080:80
 
 ### 8. 원격 GCP Artifact Registry 이미지 사용 시 Chart 생성 및 배포
 
-Google Cloud Platform(GCP)의 Artifact Registry에 저장된 원격 이미지(`asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai:prod`)를 다운로드하여 Helm Chart로 배포하는 절차입니다. (GCP 인증은 아래 3)항 참조)
+Google Cloud Platform(GCP)의 Artifact Registry에 저장된 원격 이미지(`asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-claude-agent:prod`)를 다운로드하여 Helm Chart로 배포하는 절차입니다. (GCP 인증은 아래 3)항 참조)
 
 #### 1) Compose 파일 설정 (`compose-prod-GCPRegistry.yml`)
 `backend` 서비스에서 `build:` 섹션을 생략하고, GCP Artifact Registry의 전체 이미지 경로를 지정합니다:
@@ -802,7 +802,7 @@ services:
 
   backend:
     # GCP Artifact Registry 원격 이미지 지정
-    image: asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai:prod
+    image: asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-claude-agent:prod
     ports:
       - 3000:3000
     expose:
@@ -825,7 +825,7 @@ services:
   * `asia-northeast3-docker.pkg.dev`: 서울 리전 Docker 호스트 엔드포인트
   * `ssu-agent-vertex-509708`: GCP 프로젝트 ID
   * `suntaechung-repo`: Artifact Registry 표준 Docker 저장소명
-  * `todo-lab-ai`: 이미지 패키지명
+  * `todo-claude-agent`: 이미지 패키지명
   * `prod`: 이미지 태그
 
 #### 2) Katenary를 통한 Helm Chart 변환
@@ -845,7 +845,7 @@ python scripts/generate-chart.py gcp_gke
     servicePort: 80             # 표준 HTTP 포트 (포트 번호 없이 접속 가능)
     repository:
       # GCP 저장소 경로가 자동으로 매핑됨
-      image: asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai
+      image: asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-claude-agent
       # 태그 분리
       tag: prod
     replicas: 1

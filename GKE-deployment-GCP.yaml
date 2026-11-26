@@ -151,7 +151,7 @@ spec:
               echo "PostgreSQL is available!"
       containers:
         - name: backend
-          image: asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai:prod
+          image: asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-claude-agent:prod
           imagePullPolicy: Always
           ports:
             - containerPort: 3000

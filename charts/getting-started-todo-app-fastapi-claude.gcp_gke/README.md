@@ -27,7 +27,7 @@ The following table lists the configurable parameters of the getting-started-tod
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `backend.imagePullPolicy`                                     | `IfNotPresent`                                                                        |
 | `backend.replicas`                                            | `1`                                                                                   |
-| `backend.repository.image`                                    | `asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai` |
+| `backend.repository.image`                                    | `asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-claude-agent` |
 | `backend.repository.tag`                                      | `prod`                                                                                |
 | `backend.serviceAccount`                                      | ``                                                                                    |
 | `postgres.imagePullPolicy`                                    | `IfNotPresent`                                                                        |

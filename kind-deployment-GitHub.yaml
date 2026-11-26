@@ -154,7 +154,7 @@ spec:
       #   - name: ghcr-secret
       containers:
         - name: backend
-          image: ghcr.io/cstpeace0191/todo-lab-ai:prod
+          image: ghcr.io/cstpeace0191/todo-claude-agent:prod
           imagePullPolicy: Always
           ports:
             - containerPort: 3000

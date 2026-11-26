@@ -27,7 +27,7 @@ The following table lists the configurable parameters of the getting-started-tod
 | ------------------------------------------------------------- | ---------------------------------- |
 | `backend.imagePullPolicy`                                     | `IfNotPresent`                     |
 | `backend.replicas`                                            | `1`                                |
-| `backend.repository.image`                                    | `ghcr.io/cstpeace0191/todo-lab-ai` |
+| `backend.repository.image`                                    | `ghcr.io/cstpeace0191/todo-claude-agent` |
 | `backend.repository.tag`                                      | `prod`                             |
 | `backend.serviceAccount`                                      | ``                                 |
 | `postgres.imagePullPolicy`                                    | `IfNotPresent`                     |

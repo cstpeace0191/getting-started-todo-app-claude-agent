@@ -141,5 +141,30 @@ class Classification(BaseModel):
     )
 
 
+class BriefingRequest(BaseModel):
+    # 클라이언트 기준 오늘 날짜 (없으면 서버 오늘)
+    today: Optional[str] = None
+
+    @field_validator("today")
+    @classmethod
+    def _today(cls, v):
+        return _check_date(v)
+
+
+class FocusItem(BaseModel):
+    item_id: str = Field(description="추천하는 할 일의 id (도구로 조회한 값 그대로)")
+    name: str
+    reason: str = Field(description="왜 먼저 해야 하는지 한 문장")
+
+
+class Briefing(BaseModel):
+    """일정 브리핑 에이전트가 돌려주는 구조화된 결과"""
+
+    summary: str = Field(description="오늘 상황 2~3문장 요약")
+    focus: List[FocusItem] = Field(description="오늘 우선 처리할 항목, 최대 5개, 우선순위 순")
+    warnings: List[str] = Field(description="기한 초과·일정 겹침·과부하 등 주의사항")
+    tips: List[str] = Field(description="실행 가능한 짧은 조언, 최대 3개")
+
+
 class GreetingResponse(BaseModel):
     greeting: str

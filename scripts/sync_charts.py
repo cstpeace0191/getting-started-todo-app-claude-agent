@@ -295,21 +295,21 @@ spec:
 
 CONFIGS = {
     "getting-started-todo-app-fastapi-claude.local_kind": {
-        "backend_image": "todo-lab-ai",
+        "backend_image": "todo-claude-agent",
         "backend_tag": "prod",
         "backend_pull_policy": "IfNotPresent",
         "storage_class": "standard",
         "storage_size": "1Gi",
     },
     "getting-started-todo-app-fastapi-claude.github_kind": {
-        "backend_image": "ghcr.io/cstpeace0191/todo-lab-ai",
+        "backend_image": "ghcr.io/cstpeace0191/todo-claude-agent",
         "backend_tag": "prod",
         "backend_pull_policy": "Always",
         "storage_class": "standard",
         "storage_size": "1Gi",
     },
     "getting-started-todo-app-fastapi-claude.gcp_gke": {
-        "backend_image": "asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-lab-ai",
+        "backend_image": "asia-northeast3-docker.pkg.dev/ssu-agent-vertex-509708/suntaechung-repo/todo-claude-agent",
         "backend_tag": "prod",
         "backend_pull_policy": "Always",
         "storage_class": "standard-rwo",

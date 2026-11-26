@@ -14,6 +14,7 @@ SQLite 및 PostgreSQL 데이터베이스와의 비동기 연동을 지원하며,
 - **비동기 DB 클라이언트**: 
   - [aiosqlite](https://github.com/omnilib/aiosqlite) (SQLite)
   - [asyncpg](https://github.com/MagicStack/asyncpg) (PostgreSQL)
+- **AI**: [Claude Agent SDK](https://docs.claude.com) (`claude-agent-sdk`)
 - **테스트 프레임워크**: [pytest](https://docs.pytest.org/), `pytest-asyncio`, `httpx`
 
 ---
@@ -24,7 +25,11 @@ SQLite 및 PostgreSQL 데이터베이스와의 비동기 연동을 지원하며,
 backend/
 ├── src/
 │   ├── main.py              # FastAPI 메인 앱 및 라이프사이클(Lifespan) 관리
-│   ├── models.py            # Pydantic 데이터 모델 (Item, ItemCreate 등)
+│   ├── models.py            # Pydantic 데이터 모델 (Item, ItemCreate, Briefing 등)
+│   ├── ai/                  # Claude Agent SDK 기반 AI 기능
+│   │   ├── agent.py         # 공통 실행·옵션·오류 처리
+│   │   ├── classifier.py    # 할 일 자동 분류
+│   │   └── planner.py       # 일정 브리핑 에이전트 (MCP 도구)
 │   ├── persistence/         # 비동기 데이터베이스 계층
 │   │   ├── __init__.py      # DB 엔진 자동 선택 (SQLite / PostgreSQL)
 │   │   ├── sqlite.py        # aiosqlite 기반 SQLite 구현
@@ -32,8 +37,9 @@ backend/
 │   └── routes/              # API 라우터
 │       ├── __init__.py
 │       ├── greeting.py      # /api/greeting 라우트
-│       └── items.py         # /api/items CRUD 라우트
+│       └── items.py         # /api/items CRUD, 재분류, AI 브리핑 라우트
 ├── spec/                    # pytest 기반 비동기 단위/통합 테스트
+│   ├── ai/
 │   ├── persistence/
 │   └── routes/
 ├── Dockerfile               # 컨테이너 빌드 파일
@@ -229,23 +235,27 @@ python main.py
 | `POST` | `/api/items` | 새 Todo 항목 추가 (Claude 자동 분류 + 일정 추출) | `{"name": "할 일 내용", "today": "YYYY-MM-DD", "due_date": "YYYY-MM-DD", "due_time": "HH:MM"}` (`name` 외 선택. `due_*` 를 주면 AI 추출값보다 우선) | `{"id": "UUID", "name": "할 일 내용", "completed": false, "category": "...", "priority": "..."}` |
 | `PUT` | `/api/items/{id}` | Todo 항목 수정 (분류 수동 변경 가능) | `{"name": "수정 이름", "completed": true, "category": "work", "priority": "low"}` (모두 선택). `{"registered": true}` 로 **등록(Register)**, `due_date`/`due_time` 으로 일정 변경 (`""` 이면 삭제, 날짜 삭제 시 시간도 삭제) | 수정된 항목 |
 | `POST` | `/api/items/{id}/classify?today=YYYY-MM-DD` | Claude 로 다시 분류 (문장에서 일정도 다시 추출, 못 찾으면 기존 일정 유지) | - | 분류된 항목 (AI 꺼짐: 503, 실패: 502) |
-| `GET` | `/api/ai/status` | AI 분류 사용 가능 여부 | - | `{"enabled": true}` |
+| `POST` | `/api/ai/briefing` | AI 일정 브리핑 (에이전트가 DB 를 조회) | `{"today": "YYYY-MM-DD"}` (선택) | `{"summary": "...", "focus": [{"item_id", "name", "reason"}], "warnings": [], "tips": []}` (AI 꺼짐: 503, 실패: 502) |
+| `GET` | `/api/ai/status` | AI 기능 사용 가능 여부 | - | `{"enabled": true}` |
 | `DELETE` | `/api/items/{id}` | Todo 항목 삭제 | - | `HTTP 200 OK` |
 
 ---
 
-## 🤖 AI 자동 분류 (Claude API)
+## 🤖 AI 기능 (Claude Agent SDK)
 
-할 일을 추가하면 Claude API(`claude-opus-5-5`)를 **짧은 단일 호출**로 불러 카테고리와 우선순위를 자동으로 붙입니다. 코드는 `src/ai/classifier.py` 에 있습니다.
+AI 기능은 모두 **Claude Agent SDK**(`claude-agent-sdk`)로 동작합니다. 공통 실행 코드는 `src/ai/agent.py` (내장 도구·로컬 설정을 끄고 구조화 출력으로 결과를 받음)에 있고, 모델은 `AI_MODEL`(기본 `claude-opus-5-5`)로 바꿀 수 있습니다. AI 전체를 끄려면 `AI_ENABLED=false` (구 이름 `AI_CLASSIFY_ENABLED` 도 인정).
+
+### 1) 자동 분류 — `src/ai/classifier.py`
+할 일을 추가하면 도구 없는 단일 턴 에이전트가 카테고리·우선순위·일정을 구조화 출력으로 돌려줍니다.
 
 | 필드 | 값 | 화면 표시 |
 | :--- | :--- | :--- |
 | `category` | `study` / `work` / `personal` | 학업 / 업무 / 개인 |
 | `priority` | `high` / `medium` / `low` | 높음 / 보통 / 낮음 |
 
-- **Structured Outputs**: `client.beta.messages.parse(output_format=Classification)` 로 응답을 Pydantic 모델로 검증합니다.
-- **비용·지연 절감**: 단순 분류이므로 `output_config={"effort": "low"}` 를 사용합니다.
-- **거절 대비**: `fallbacks="default"` (server-side fallback 베타)로 안전 분류기가 거절하면 서버가 다른 모델로 자동 재시도합니다.
+- **구조화 출력**: `ClaudeAgentOptions(output_format={"type": "json_schema", ...})` 로 받은 `ResultMessage.structured_output` 을 Pydantic 모델로 검증합니다.
+- **비용·지연 절감**: 단순 분류이므로 `effort="low"` 를 사용합니다. Agent SDK 는 Claude Code 런타임을 하위 프로세스로 띄우므로 호출당 시작 지연이 있습니다.
+- **격리**: 내장 도구(`tools=[]`)·로컬 설정(`setting_sources=[]`)·외부 MCP(`strict_mcp_config`)를 모두 끕니다.
 - **장애 격리**: 키가 없거나 API 호출이 실패하면 분류만 비어 있는 상태(`null`)로 저장되고, CRUD 는 그대로 동작합니다.
 - **일정 추출**: 클라이언트가 보낸 오늘 날짜(`today`)를 기준으로 "내일 오전 9시" 같은 표현을 `due_date`/`due_time` 으로 변환합니다. AI 가 돌려준 값은 형식·존재 여부를 검증하고 틀리면 버립니다.
 - **DB 마이그레이션**: 기존 `todo_items` 테이블에 `category`, `priority` 컬럼이 없으면 시작 시 자동으로 추가합니다 (SQLite/PostgreSQL).
@@ -254,9 +264,10 @@ python main.py
 
 | 환경 변수 | 설명 |
 | :--- | :--- |
-| `ANTHROPIC_API_KEY` | Claude API 키 |
+| `ANTHROPIC_API_KEY` | Claude API 키 (Agent SDK 에 `env` 로 전달) |
 | `ANTHROPIC_API_KEY_FILE` | 키가 들어 있는 파일 경로 (Docker/K8s Secret 마운트용, 우선 적용) |
-| `AI_CLASSIFY_ENABLED` | `false` 로 두면 키가 있어도 분류 비활성화 |
+| `AI_ENABLED` | `false` 로 두면 키가 있어도 AI 기능 전체 비활성화 (구 이름 `AI_CLASSIFY_ENABLED` 도 인정) |
+| `AI_MODEL` | 사용할 모델 (기본 `claude-opus-5-5`) |
 
 ```powershell
 # 로컬 실행 (PowerShell)
@@ -271,13 +282,19 @@ kubectl create secret generic todo-ai-secret --from-literal=ANTHROPIC_API_KEY=<y
 kubectl rollout restart deployment/todo-backend
 ```
 
-> 테스트(`spec/ai`, `spec/routes/test_classifyItem.py`)는 Claude 클라이언트를 mock 으로 대체하므로 실제 API 를 호출하지 않고 비용도 들지 않습니다.
+> 테스트(`spec/ai`, `spec/routes/test_classifyItem.py`)는 Agent SDK 의 `query` 를 mock 으로 대체하므로 실제 API 를 호출하지 않고 비용도 들지 않습니다.
+
+### 2) 일정 브리핑 에이전트 (신규) — `src/ai/planner.py`
+`POST /api/ai/briefing` (`{"today": "YYYY-MM-DD"}`, 선택). 에이전트가 앱 내장(in-process) MCP 도구
+`get_schedule` / `search_items` / `get_category_counts` 로 **할 일 DB 를 직접 조회**한 뒤, 오늘 먼저 할 일(`focus`),
+주의사항(`warnings`), 조언(`tips`)을 담은 브리핑을 돌려줍니다. 도구는 읽기 전용이며 Bash/파일 같은 내장 도구는 쓸 수 없습니다.
+AI 꺼짐: 503, 실패: 502. 화면에서는 날짜별 검색의 **AI 브리핑** 버튼으로 호출합니다.
 
 ---
 
 ## 🧪 테스트 실행 (Running Tests)
 
-`pytest`를 사용하여 영속성 계층 및 API 라우트에 대한 비동기 단위 테스트를 실행합니다.
+`pytest`를 사용하여 영속성 계층, AI 모듈 및 API 라우트에 대한 비동기 단위 테스트를 실행합니다.
 
 ```bash
 # 전체 테스트 실행
